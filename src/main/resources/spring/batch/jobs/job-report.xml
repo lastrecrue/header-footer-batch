@@ -1,0 +1,93 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:batch="http://www.springframework.org/schema/batch" 
+       xmlns:task="http://www.springframework.org/schema/task"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/batch
+	http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+	http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd">
+ 
+    <bean id="report" class="fr.francetelecom.model.Report" scope="prototype" />
+    <bean id="reportWriter" class="fr.francetelecom.writer.ReportWriter" >
+<!--        <property name="footerCallback" ref="footerCallback" />
+        <property name="lineAggregator" ref="lineAggregator"/>
+        <property name="resource" value="file:target/test-outputs/output.txt" />-->
+        
+    </bean>
+    <bean name="lineAggregator" class="org.springframework.batch.item.file.transform.PassThroughLineAggregator" />  
+    <bean name="footerCallback" class="fr.francetelecom.callback.ItemReaderFooter" >
+        <property name="delegate" ref="reportWriter" />
+    </bean>
+    
+    
+    <batch:job id="reportJob">
+        <batch:step id="step1">
+            <batch:tasklet>
+                <batch:chunk reader="cvsFileItemReader" writer="reportWriter" 
+                             commit-interval="2">
+                </batch:chunk>
+            </batch:tasklet>
+        </batch:step>
+    </batch:job>
+    
+    <!--<bean id="lineTokenizer" class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer" />-->
+
+   
+    
+    <bean name="lineTokenizer"
+          class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+        <property name="names" value="date,impressions,clicks,earning" />
+    </bean>
+    <bean name="lineMapper" class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+        <!-- split it -->
+        <property name="lineTokenizer" ref="lineTokenizer">
+                    
+        </property>
+        <property name="fieldSetMapper">   
+            <!-- return back to reader, rather than a mapped object. -->
+            <!--
+           <bean class="org.springframework.batch.item.file.mapping.PassThroughFieldSetMapper" />
+            --> 
+            <!-- map to an object -->
+            <bean
+                class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+                <property name="prototypeBeanName" value="report" />
+            </bean>			
+        </property>
+ 
+    </bean>
+ 
+    <bean id="skippedLinesCallback" class="fr.francetelecom.callback.ItemReaderHeader" >
+        <property name="lineMapper" ref="lineMapper" />
+    </bean>
+    
+    
+ 
+    <bean id="cvsFileItemReader" class="org.springframework.batch.item.file.FlatFileItemReader">
+ 
+        <!-- Read a csv file -->
+        <property name="resource" value="classpath:cvs/report.csv" />
+        <property name="linesToSkip" value="1"></property>
+        <property name="skippedLinesCallback" ref="skippedLinesCallback" ></property>
+        <property name="lineMapper" ref="lineMapper" />
+    </bean>
+ 
+    <!--    <bean id="mysqlItemWriter"
+          class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+        <property name="dataSource" ref="dataSource" />
+        <property name="sql">
+            <value>
+            <![CDATA[        
+                insert into RAW_REPORT(DATE,IMPRESSIONS,CLICKS,EARNING) 
+                        values (:date, :impressions, :clicks, :earning)
+            ]]>
+            </value>
+        </property>
+         It will take care matching between object property and sql name parameter 
+        <property name="itemSqlParameterSourceProvider">
+            <bean
+                class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+        </property>
+    </bean>-->
+ 
+</beans>
